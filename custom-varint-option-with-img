@@ -1,0 +1,290 @@
+
+
+<select first-avl-v-id="{{  product.selected_or_first_available_variant.id }}" id="variants-custom-n" class="select__select" form="product-form-template--15412698447946__main" style="display:none">
+  {% for variant in product.variants %}
+    <option data-variant-id="{{ variant.id }}" 
+            data-option="{{ variant.option1 }} / {{ variant.option2 }} / {{ variant.option3 }}" 
+            data-var-sku="{{ variant.sku }}" 
+            variant-data-price="${{ variant.price | money }}" 
+            qty="true" {% if variant.id == product.selected_or_first_available_variant.id %}selected="selected"{% endif %}>
+       {{ variant.option1 }} {% if variant.option2 %} / {% endif %}{{ variant.option2 }}{% if variant.option2 %} / {% endif %}{{ variant.option3 }}
+    </option>
+  {% endfor %}
+</select>
+
+
+<div id="variant-selects-{{ section.id }}" data-section="{{ section.id }}" data-url="{{ product.url }}">
+  {% for option in product.options_with_values %}
+    <div class="mm-dropdown" data-option-name="{{ option.name }}">
+      <div class="textfirst">{{ option.name }} <img src="https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-arrow-down-b-128.png" width="10" height="10" class="down" /></div>
+      <ul>
+        {% for value in option.values %}
+          {% assign option_disabled = true %}
+          {% assign variant_image = "" %}
+          {% assign variant_id = "" %}
+          {% assign variant_title = "" %}
+
+          {% for variant in product.variants %}
+            {% case option.position %}
+              {% when 1 %}
+                {% if variant.option1 == value and variant.available %}
+                  {% assign option_disabled = false %}
+                  {% assign variant_image = variant.image | img_url: '20x20' %}
+                  {% assign variant_id = variant.id %}
+                  {% assign variant_title = variant.title %}
+                {% endif %}
+              {% when 2 %}
+                {% if variant.option1 == product.selected_or_first_available_variant.option1 and variant.option2 == value and variant.available %}
+                  {% assign option_disabled = false %}
+                  {% assign variant_image = variant.image | img_url: '20x20' %}
+                  {% assign variant_id = variant.id %}
+                  {% assign variant_title = variant.title %}
+                {% endif %}
+              {% when 3 %}
+                {% if variant.option1 == product.selected_or_first_available_variant.option1 and variant.option2 == product.selected_or_first_available_variant.option2 and variant.option3 == value and variant.available %}
+                  {% assign option_disabled = false %}
+                  {% assign variant_image = variant.image | img_url: '20x20' %}
+                  {% assign variant_id = variant.id %}
+                  {% assign variant_title = variant.title %}
+                {% endif %}
+            {% endcase %}
+          {% endfor %}
+
+          <li class="input-option {% if option_disabled %}disabled{% endif %}" data-value="{{ value }}" data-variant-id="{{ variant_id }}" data-variant-title="{{ variant_title }}">
+            {% if variant_image %}
+              <img src="{{ variant_image }}" alt="" width="20" height="20" />
+            {% elsif value.swatch.image %}
+              <img src="{{ value.swatch.image | image_url: width: 20 }}" alt="" width="20" height="20" />
+            {% elsif value.swatch.color %}
+              <span style="background-color: rgb({{ value.swatch.color.rgb }}); width: 20px; height: 20px; display: inline-block;"></span>
+            {% endif %}
+            {{ value }}
+          </li>
+        {% endfor %}
+      </ul>
+      <input type="hidden" class="option" name="namesubmit" value="" />
+    </div>
+  {% endfor %}
+</div>
+<script>document.addEventListener('DOMContentLoaded', function () {
+  const dropdowns = document.querySelectorAll('.mm-dropdown');
+  const productVariantInput = document.querySelector('input.product-variant-id');
+  const variantsSelect = document.getElementById('variants-custom-n');
+  const selectedOptions = {};
+
+  function closeOtherDropdowns(currentDropdown) {
+    dropdowns.forEach(d => {
+      if (d !== currentDropdown) {
+        d.querySelector('ul').classList.remove('show');
+      }
+    });
+  }
+
+  function updateProductVariantInput() {
+    const variantOptions = Array.from(variantsSelect.options);
+
+    let matchingVariantId = null;
+
+    variantOptions.forEach(option => {
+      const optionValues = option.getAttribute('data-option').split(' / ').filter(Boolean);
+      let isMatch = true;
+
+      for (const [key, value] of Object.entries(selectedOptions)) {
+        if (!optionValues.includes(value)) {
+          isMatch = false;
+          break;
+        }
+      }
+
+      if (isMatch && Object.keys(selectedOptions).length === optionValues.length) {
+        matchingVariantId = option.getAttribute('data-variant-id');
+        option.setAttribute('selected', 'selected');
+      } else {
+        option.removeAttribute('selected');
+      }
+    });
+
+    if (productVariantInput) {
+      productVariantInput.value = matchingVariantId || '';
+    }
+
+    variantsSelect.value = matchingVariantId || variantOptions[0].getAttribute('data-variant-id');
+  }
+
+  function handleDropdownSelection(dropdown) {
+    const textfirst = dropdown.querySelector('.textfirst');
+    const ul = dropdown.querySelector('ul');
+    const options = dropdown.querySelectorAll('.input-option');
+    const optionName = dropdown.dataset.optionName;
+
+    textfirst.addEventListener('click', (event) => {
+      event.stopPropagation();
+      closeOtherDropdowns(dropdown);
+      ul.classList.toggle('show');
+    });
+
+    options.forEach(option => {
+      if (!option.classList.contains('disabled')) {
+        option.addEventListener('click', function () {
+          const value = option.getAttribute('data-value');
+          selectedOptions[optionName] = value;
+
+          textfirst.innerHTML = `${value} <img src="https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-arrow-down-b-128.png" width="10" height="10" class="down" />`;
+          ul.classList.remove('show');
+
+          updateProductVariantInput();
+        });
+      }
+    });
+
+    document.addEventListener('click', function (event) {
+      if (!dropdown.contains(event.target)) {
+        ul.classList.remove('show');
+      }
+    });
+  }
+
+  dropdowns.forEach(dropdown => {
+    handleDropdownSelection(dropdown);
+  });
+
+  variantsSelect.addEventListener('change', function () {
+    const selectedOption = variantsSelect.options[variantsSelect.selectedIndex];
+    const selectedVariantId = selectedOption.getAttribute('data-variant-id');
+    if (productVariantInput) {
+      productVariantInput.value = selectedVariantId;
+    }
+
+    const selectedOptionValues = selectedOption.getAttribute('data-option').split(' / ').filter(Boolean);
+    const optionNames = Array.from(dropdowns).map(dropdown => dropdown.getAttribute('data-option-name'));
+
+    selectedOptionValues.forEach((value, index) => {
+      const dropdown = Array.from(dropdowns).find(d => d.getAttribute('data-option-name') === optionNames[index]);
+      if (dropdown) {
+        const textfirst = dropdown.querySelector('.textfirst');
+        const option = Array.from(dropdown.querySelectorAll('.input-option')).find(opt => opt.getAttribute('data-value') === value);
+        if (option) {
+          textfirst.innerHTML = `${value} <img src="https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-arrow-down-b-128.png" width="10" height="10" class="down" />`;
+          selectedOptions[optionNames[index]] = value;
+        }
+      }
+    });
+  });
+
+  updateProductVariantInput();
+});
+  /* By Default Selected */
+  window.onload = function() {
+  const selectElement = document.getElementById('variants-custom-n');
+  const hiddenInput = document.querySelector('input.option.product-variant-id');
+
+  // Get the value of first-avl-v-id attribute from the select element
+  const firstAvailableVariantId = selectElement.getAttribute('first-avl-v-id');
+
+  // Set the value of the hidden input field
+  hiddenInput.value = firstAvailableVariantId;
+
+  // Log for verification (you can remove this in production)
+  console.log('First Available Variant ID:', firstAvailableVariantId);
+};
+
+  /*By Default Selected */ 
+</script>
+
+<style>
+  /* Styling the select box */
+.select__select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  color: #333;
+  background-color: #f9f9f9;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Adding a custom arrow icon */
+.select__select::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #333;
+  pointer-events: none;
+}
+
+/* Styling the options */
+.select__select option {
+  padding: 10px;
+  font-size: 16px;
+  color: #333;
+  background-color: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+/* Changing the color of the selected option */
+.select__select option[selected] {
+  background-color: #e6e6e6;
+  color: #000;
+}
+/* css for drop-downs */
+  div.mm-dropdown {
+  border: 1px solid #ddd;
+  width: 100%;
+  border-radius: 3px;
+}
+
+div.mm-dropdown ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+div.mm-dropdown ul li,
+div.mm-dropdown div.textfirst {
+  padding: 0;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding: 5px 15px;
+}
+
+div.mm-dropdown div.textfirst img.down {
+  float: right;
+  margin-top: 5px;
+}
+
+div.mm-dropdown ul li:last-child {
+  border-bottom: 0;
+}
+
+div.mm-dropdown ul li {
+  display: none;
+  padding-left: 25px;
+}
+
+div.mm-dropdown ul.show li {
+  display: block;
+}
+
+div.mm-dropdown ul li img {
+  width: 20px;
+  height: 20px;
+}
+
+  </style>
+
+
+
+ This is for Dawn theme.
